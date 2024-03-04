@@ -1,7 +1,12 @@
 # 目录
+## 前置知识
+* 深度学习基础
+* NLP基础
+
+
 ## LLM算法
 * LLM架构
-  * [bthread基础](docs/bthread_basis.md)
+  * [OpenAI API教程](docs/bthread_basis.md)
 * LLM数据集
   * [无异常状态下的一次完整RPC请求过程](docs/client_rpc_normal.md)
   * [RPC请求可能遇到的多种异常及应对策略](docs/client_rpc_exception.md)
