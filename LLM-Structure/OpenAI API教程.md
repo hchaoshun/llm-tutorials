@@ -1,9 +1,13 @@
 # OpenAI API教程
 
 OpenAI API 是由OpenAI公司开发，为LLM开发人员提供的一个简单接口。通过此API能在应用程序中方便地调用OpenAI提供的大模型基础能力。
-本文将首先介绍OpenAI API基础知识和模型，然后使用Embedding模型构建一个网站智能问答系统。内容包括：
+OpenAI的API协议已成为LLM领域的标准。
+
+本文将首先介绍OpenAI API基础知识和模型，然后以Chat Completions API和Embedding API为例子介绍OpenAI API的用法。
+最后使用Embedding模型构建一个网站智能问答系统。本文内容包括：
 - API快速入门
 - OpenAI提供的模型
+- Chat Completions API和Embedding API
 - 基于Embedding模型构建智能问答系统
 
 ## API快速入门
@@ -18,7 +22,7 @@ export OPENAI_API_KEY='your-api-key-here'
 
 - 发送请求
     - python
-      ```pyhon
+      ```python
       from openai import OpenAI
       client = OpenAI()
       # 请求参数将在下文中介绍
@@ -63,194 +67,149 @@ OpenAI API 提供不同功能和价位的模型。您甚至可以根据自己的
 | Moderation                 | 可检测文本是否敏感或不安全的微调模型 | text-moderation-latest	 |
 | GPT base                   | 一套不遵循指令的模型，可理解并生成自然语言或代码 |            babbage-002	 |
 
-## 基于Embedding模型构建智能问答系统
-本部分通过一个简单的示例介绍如何抓取网站（本例中为 OpenAI 网站），使用Embedding API 将抓取的页面转化为Embedding并存储，
-然后创建一个基本的搜索功能，允许用户基于存储的信息提问。完整代码请查看：。。。
-
-### 使用Scrapy爬取网站信息
-首先，导入所需的软件包，设置基本的 URL，并定义 HTMLParser 类。
-```python
-import requests
-import re
-import urllib.request
-from bs4 import BeautifulSoup
-from collections import deque
-from html.parser import HTMLParser
-from urllib.parse import urlparse
-import os
-
-# 用于匹配URL的正则表达式模式
-HTTP_URL_PATTERN = r'^http[s]*://.+'
-
-domain = "openai.com" # <- 将要爬取的域名放在这里
-full_url = "https://openai.com/" # <- 将要爬取的域名以https或http形式放在这里
-
-# 创建一个类来解析HTML并获取超链接
-class HyperlinkParser(HTMLParser):
-    def __init__(self):
-        super().__init__()
-        # 创建一个列表来存储超链接
-        self.hyperlinks = []
-
-    # 重写HTMLParser的handle_starttag方法来获取超链接
-    def handle_starttag(self, tag, attrs):
-        attrs = dict(attrs)
-
-        # 如果标签是锚标签并且有href属性，则将href属性添加到超链接列表中
-        if tag == "a" and "href" in attrs:
-            self.hyperlinks.append(attrs["href"])
+## Chat Completions API
+Chat Model将对话信息以列表的形式作为输入，并将模型生成的信息作为输出返回。
+虽然聊天格式是为了方便多轮对话而设计的，但它同样适用于没有任何对话的单轮任务。
+### Example Reqeust
+- curl request
+```shell
+curl https://api.openai.com/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -d '{
+    "model": "gpt-3.5-turbo",
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a helpful assistant."
+      },
+      {
+        "role": "user",
+        "content": "Who won the world series in 2020?"
+      },
+      {
+        "role": "assistant",
+        "content": "The Los Angeles Dodgers won the World Series in 2020."
+      },
+      {
+        "role": "user",
+        "content": "Where was it played?"
+      }
+    ]
+  }'
 ```
-将 URL 作为参数，打开 URL 并读取 HTML 内容。然后，返回在该页面上找到的所有超链接。
+- python request
 ```python
-import requests
-import re
-import urllib.request
-from bs4 import BeautifulSoup
-from collections import deque
-from html.parser import HTMLParser
-from urllib.parse import urlparse
-import os
+from openai import OpenAI
+client = OpenAI()
 
-# 用于匹配URL的正则表达式模式
-HTTP_URL_PATTERN = r'^http[s]*://.+'
+response = client.chat.completions.create(
+  model="gpt-3.5-turbo",
+  messages=[
+    {"role": "system", "content": "You are a helpful assistant."},
+    {"role": "user", "content": "Who won the world series in 2020?"},
+    {"role": "assistant", "content": "The Los Angeles Dodgers won the World Series in 2020."},
+    {"role": "user", "content": "Where was it played?"}
+  ]
+)
 
-domain = "openai.com" # <- 将要爬取的域名放在这里
-full_url = "https://openai.com/" # <- 将要爬取的域名以https或http形式放在这里
-
-# 创建一个类来解析HTML并获取超链接
-class HyperlinkParser(HTMLParser):
-    def __init__(self):
-        super().__init__()
-        # 创建一个列表来存储超链接
-        self.hyperlinks = []
-
-    # 重写HTMLParser的handle_starttag方法来获取超链接
-    def handle_starttag(self, tag, attrs):
-        attrs = dict(attrs)
-
-        # 如果标签是锚标签并且有href属性，则将href属性添加到超链接列表中
-        if tag == "a" and "href" in attrs:
-            self.hyperlinks.append(attrs["href"])
-
+print(completion.choices[0].message)
 ```
-我们的目标是只抓取 OpenAI 域名下的内容并编制索引。为此，我们需要一个调用 `get_hyperlinks` 函数的函数，但要过滤掉不属于指定域的任何 URL。
-```python
-# 从URL获取同一域名内的超链接的函数
-def get_domain_hyperlinks(local_domain, url):
-    clean_links = []
-    for link in set(get_hyperlinks(url)):
-        clean_link = None
 
-        # 如果链接是一个URL，检查它是否在同一域名内
-        if re.search(HTTP_URL_PATTERN, link):
-            # 解析URL并检查域名是否相同
-            url_obj = urlparse(link)
-            if url_obj.netloc == local_domain:
-                clean_link = link
+Request主要输入是`messages`参数。`messages`必须是一个对象数组，其中每个对象都有一个角色（"system"、"user"或 "assistant"）和`content`。对话可以短至一条信息，也可以来回多次。
 
-        # 如果链接不是URL，检查它是否是一个相对链接
-        else:
-            if link.startswith("/"):
-                link = link[1:]
-            elif link.startswith("#") or link.startswith("mailto:"):
-                continue
-            clean_link = "https://" + local_domain + "/" + link
+通常情况下，对话的格式是`system`在前，`user`和`assistant`交替在后。
 
-        if clean_link is not None:
-            if clean_link.endswith("/"):
-                clean_link = clean_link[:-1]
-            clean_links.append(clean_link)
+`system`有助于设置assistant的行为。例如，您可以修改assistant的个性，或对其在整个对话过程中的行为提供具体指导。不过请注意，系统信息是可选的，如果没有系统信息，模型的行为可能与使用 "You are a helpful assistant."这样的通用信息类似。
 
-    # 返回同一域名内的超链接列表
-    return list(set(clean_links))
+`user`提供请求或评论，供assistant回复。assistant信息会存储以前的回复，但也可以由您自己编写，以提供所需的行为示例。
 
+当用户引用之前的信息时，包括对话历史记录就显得非常重要。由于模型无法记忆过去的请求，因此**所有相关信息都必须作为每次请求中对话历史的一部分提供**。如果一个对话无法容纳在模型的标记限制内，就需要以某种方式将其缩短。
+
+### Example Response
+```json
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "The 2020 World Series was played in Texas at Globe Life Field in Arlington.",
+        "role": "assistant"
+      },
+      "logprobs": null
+    }
+  ],
+  "created": 1677664795,
+  "id": "chatcmpl-7QyqpwdfhqwajicIEznoc6Q47XAyW",
+  "model": "gpt-3.5-turbo-0613",
+  "object": "chat.completion",
+  "usage": {
+    "completion_tokens": 17,
+    "prompt_tokens": 57,
+    "total_tokens": 74
+  }
+}
 ```
-`crawl`是网络搜索任务设置的最后一步。它跟踪访问过的 URL，以避免重复访问同一页面，因为同一页面可能在网站的多个页面中都有链接。它还会提取网页中没有 HTML 标记的原始文本，并将文本内容写入特定于该网页的本地 .txt 文件中。
-```python
-def crawl(url):
-    # 解析URL并获取域名
-    local_domain = urlparse(url).netloc
+每次响应，都包括一个`finish_reason`. `finish_reason`的可能值是：
+- `stop`：API返回完整信息，或由通过 stop 参数提供的stop序列之一终止的消息
+- `length`：不完整模型的输出，由于max_tokens参数或限制令牌
+- `function_call`：模型决定调用一个函数
+- `content_filter`:由于我们的内容过滤器中的标记而省略了内容
+- `null`：API响应仍在进行中的或不完整
 
-    # 创建一个队列来存储待爬取的URLs
-    queue = deque([url])
+根据输入的参数不同，模型的返回可能包括不同的信息。
 
-    # 创建一个集合来存储已经看到的URLs（无重复）
-    seen = set([url])
+## Embedding API
+LLM的Embedding通常用在RAG中，给模型某个特定领域的知识，以提高生成文本的准确性和信息含量。
 
-    # 创建一个目录来存储文本文件
-    if not os.path.exists("text/"):
-            os.mkdir("text/")
-
-    if not os.path.exists("text/"+local_domain+"/"):
-            os.mkdir("text/" + local_domain + "/")
-
-    # 创建一个目录来存储csv文件
-    if not os.path.exists("processed"):
-            os.mkdir("processed")
-
-    # 当队列不为空时，继续爬取
-    while queue:
-
-        # 从队列中获取下一个URL
-        url = queue.pop()
-        print(url) # 用于调试和查看进度
-
-        # 将url的文本保存到<url>.txt文件中
-        with open('text/'+local_domain+'/'+url[8:].replace("/", "_") + ".txt", "w", encoding="UTF-8") as f:
-
-            # 使用BeautifulSoup从URL获取文本
-            soup = BeautifulSoup(requests.get(url).text, "html.parser")
-
-            # 获取文本但去除标签
-            text = soup.get_text()
-
-            # 如果爬虫到达需要JavaScript的页面，它将停止爬取
-            if ("You need to enable JavaScript to run this app." in text):
-                print("无法解析页面 " + url + " 因为需要启用JavaScript")
-
-            # 否则，将文本写入text目录下的文件
-            f.write(text)
-
-        # 从URL获取超链接并将它们添加到队列中
-        for link in get_domain_hyperlinks(local_domain, url):
-            if link not in seen:
-                queue.append(link)
-                seen.add(link)
-
-crawl(full_url)
+要获取Embedding，将文本字符串和Embedding模型名称（如 text-embedding-3-small）一起发送到 embeddings API 端点。响应将包含一个Embedding（浮点数列表），
+可以提取它，保存在矢量数据库中，并用于许多不同的用例。
+### Example Request
+- curl
+```shell
+curl https://api.openai.com/v1/embeddings \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -d '{
+    "input": "Your text string goes here",
+    "model": "text-embedding-3-small"
+  }'
 ```
-上述示例的最后一行运行爬网程序，该程序会浏览所有可访问链接，并将这些页面转化为文本文件。根据网站的大小和复杂程度，这需要几分钟的时间。
-
-### 构建Embedding索引
-要将文本转换为 CSV，需要循环浏览之前创建的文本目录中的文本文件。打开每个文件后，删除多余的行距，并将修改后的文本添加到列表中。然后，将删除了新行的文本添加到一个空的 Pandas 数据框中，并将数据框写入 CSV 文件。
+- python
 ```python
-import pandas as pd
+from openai import OpenAI
+client = OpenAI()
 
-def remove_newlines(serie):
-    serie = serie.str.replace('\n', ' ')
-    serie = serie.str.replace('\\n', ' ')
-    serie = serie.str.replace('  ', ' ')
-    serie = serie.str.replace('  ', ' ')
-    return serie
+response = client.embeddings.create(
+    input="Your text string goes here",
+    model="text-embedding-3-small"
+)
 
-# 创建一个列表来存储文本文件
-texts=[]
+print(response.data[0].embedding)
+```
 
-# 获取text目录中的所有文本文件
-for file in os.listdir("text/" + domain + "/"):
-
-    # 打开文件并读取文本
-    with open("text/" + domain + "/" + file, "r", encoding="UTF-8") as f:
-        text = f.read()
-
-        # 省略前11行和最后4行，然后将-、_和#update替换为空格。
-        texts.append((file[11:-4].replace('-',' ').replace('_', ' ').replace('#update',''), text))
-
-# 从文本列表创建一个dataframe
-df = pd.DataFrame(texts, columns = ['fname', 'text'])
-
-# 将text列设置为删除了换行符的原始文本
-df['text'] = df['fname'] + ". " + df['text'].replace('\n', ' ')
-df.to_csv('processed/scraped.csv')
-df.head()
+### Example Response
+```json
+{
+  "object": "list",
+  "data": [
+    {
+      "object": "embedding",
+      "index": 0,
+      "embedding": [
+        -0.006929283495992422,
+        -0.005336422007530928,
+        ... (omitted for spacing)
+        -4.547132266452536e-05,
+        -0.024047505110502243
+      ],
+    }
+  ],
+  "model": "text-embedding-3-small",
+  "usage": {
+    "prompt_tokens": 5,
+    "total_tokens": 5
+  }
+}
 ```
