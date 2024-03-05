@@ -208,7 +208,7 @@ df['n_tokens'] = df.text.apply(lambda x: len(tokenizer.encode(x)))
 # 使用直方图可视化每行的分词数量分布
 df.n_tokens.hist()
 ```
-![tokens数量分布](LLM-Structure/images/img.png)
+![tokens数量分布](images/img.png)
 
 最新的Embedding模型可以处理多达 8191 个输入标记的输入，因此大部分行都不需要任何分块，但并不是每个子页面都需要分块，因此下一个代码块将把较长的行分割成较小的块。
 ```python
@@ -272,7 +272,7 @@ df = pd.DataFrame(shortened, columns = ['text'])
 df['n_tokens'] = df.text.apply(lambda x: len(tokenizer.encode(x)))
 df.n_tokens.hist()
 ```
-![拆分后的tokens数量分布](LLM-Structure/images/img_1.png)
+![拆分后的tokens数量分布](images/img_1.png)
 现在，内容被分解成更小的块，可以向 OpenAI API 发送一个简单的请求，指定使用新的text-embedding-ada-002  模型来创建embedding:
 ```python
 from openai import OpenAI
