@@ -6,7 +6,8 @@
 
 ## LLM算法
 * LLM架构
-  * [OpenAI API教程](LLM-Structure/OpenAI API教程.md)
+  * OpenAI API
+    * [OpenAI API教程](LLM-Structure/OpenAI API教程.md)
     * [基于Embedding模型构建智能问答系统](LLM-Structure/基于Embedding模型构建智能问答系统.md)
 * LLM数据集
 * LLM训练
