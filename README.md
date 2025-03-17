@@ -22,3 +22,6 @@
 * LLM RAG
 * LLM推理优化
 * LLM部署
+
+## LLM Agent
+- [大模型智能体 LLM Agent](https://zhuanlan.zhihu.com/p/658808853)
