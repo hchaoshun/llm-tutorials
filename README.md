@@ -25,3 +25,4 @@
 
 ## LLM Agent
 - [大模型智能体 LLM Agent](https://zhuanlan.zhihu.com/p/658808853)
+- [OpenAI 的最新 Deep Research，知多少？](https://news.qq.com/rain/a/20250205A075OI00)
